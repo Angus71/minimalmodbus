@@ -239,6 +239,8 @@ class Instrument:
 
         self._latest_roundtrip_time: Optional[float] = None
 
+        self.ascii_response_header = _ASCII_HEADER
+
     def __repr__(self) -> str:
         """Give string representation of the :class:`.Instrument` object."""
         template = (
@@ -1327,7 +1329,7 @@ class Instrument:
 
         # Extract payload
         payload_from_slave = _extract_payload(
-            response, self.address, self.mode, functioncode
+            response, self.address, self.mode, functioncode, self.ascii_response_header
         )
         return payload_from_slave
 
@@ -1749,7 +1751,7 @@ def _embed_payload(
 
 
 def _extract_payload(
-    response: str, slaveaddress: int, mode: str, functioncode: int
+    response: str, slaveaddress: int, mode: str, functioncode: int, ascii_header: str = _ASCII_HEADER
 ) -> str:
     """Extract the payload data part from the slave's response.
 
@@ -1759,6 +1761,7 @@ def _extract_payload(
         * slaveaddress: The adress of the slave. Used here for error checking only.
         * mode: The modbus protocol mode (MODE_RTU or MODE_ASCII)
         * functioncode: Used here for error checking only.
+        * ascii_header: optional response ascii header, to support setting of non standard response.
 
     Returns:
         The payload part of the *response*. Conversion from Modbus ASCII
@@ -1814,11 +1817,11 @@ def _extract_payload(
     if mode == MODE_ASCII:
 
         # Validate the ASCII header and footer.
-        if response[_BYTEPOSITION_FOR_ASCII_HEADER] != _ASCII_HEADER:
+        if response[_BYTEPOSITION_FOR_ASCII_HEADER] != ascii_header:
             raise InvalidResponseError(
                 "Did not find header "
                 + "({!r}) as start of ASCII response. The plain response is: {!r}".format(
-                    _ASCII_HEADER, response
+                    ascii_header, response
                 )
             )
         if response[-len(_ASCII_FOOTER) :] != _ASCII_FOOTER:
